@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Derivation Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f7f7f7;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+        textarea, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        textarea {
+            height: 150px;
+        }
+        .checkbox-group {
+            margin: 15px 0;
+        }
+        .checkbox-label {
+            display: inline;
+            margin-left: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .info {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .field-with-action {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .field-with-action label {
+            margin: 0;
+            flex-grow: 1;
+        }
+        .refresh-button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin-left: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .refresh-button:hover {
+            background-color: #0b7dda;
+        }
+        .refresh-icon {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+            border: 2px solid white;
+            border-radius: 50%;
+            position: relative;
+        }
+        .refresh-icon::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 6px 6px 0;
+            border-color: transparent white transparent transparent;
+        }
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Key Derivation Tool</h1>
+        <p>Use this tool to derive a key pair from a certificate PEM and a salt value using RSA algorithm.</p>
+        
+        <form action="/derive-keys" method="post">
+            <div>
+                <div class="field-with-action">
+                    <label for="cert_pem">Certificate PEM:</label>
+                    <button type="button" id="refresh-cert" class="refresh-button" title="Generate New Certificate">
+                        <span class="refresh-icon"></span>
+                    </button>
+                </div>
+                <textarea name="cert_pem" id="cert_pem" placeholder="-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----"></textarea>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="generate_cert" name="generate_cert" value="true">
+                    <label for="generate_cert" class="checkbox-label">Generate a self-signed certificate</label>
+                    <div class="info">Check this if you want to generate a new self-signed certificate instead of using the one above.</div>
+                </div>
+            </div>
+            
+            <div>
+                <div class="field-with-action">
+                    <label for="salt">Salt (Base64 encoded or plain text):</label>
+                    <button type="button" id="refresh-salt" class="refresh-button" title="Generate New Salt">
+                        <span class="refresh-icon"></span>
+                    </button>
+                </div>
+                <input type="text" name="salt" id="salt" placeholder="Enter a salt value or leave empty to generate one">
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="generate_salt" name="generate_salt" value="true">
+                    <label for="generate_salt" class="checkbox-label">Generate a random salt</label>
+                    <div class="info">Check this if you want to generate a random salt.</div>
+                </div>
+            </div>
+            
+            <div>
+                <label for="iterations">Iterations:</label>
+                <input type="number" name="iterations" id="iterations" value="100000" min="1">
+                <div class="info">Number of iterations for PBKDF2 (default: 100,000)</div>
+            </div>
+            
+            <div>
+                <label for="key_size">Key Size (bits):</label>
+                <select name="key_size" id="key_size">
+                    <option value="512">512 bits</option>
+                    <option value="1024">1024 bits</option>
+                    <option value="2048" selected>2048 bits (recommended)</option>
+                    <option value="3072">3072 bits</option>
+                    <option value="4096">4096 bits</option>
+                </select>
+                <div class="info">RSA key size in bits. Larger keys are more secure but slower to generate.</div>
+            </div>
+            
+            <button type="submit">Derive Keys</button>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const refreshButton = document.getElementById('refresh-cert');
+            const certTextarea = document.getElementById('cert_pem');
+            const generateCertCheckbox = document.getElementById('generate_cert');
+            
+            refreshButton.addEventListener('click', async function() {
+                try {
+                    // Show loading state
+                    certTextarea.classList.add('loading');
+                    refreshButton.classList.add('loading');
+                    
+                    // Fetch a new certificate
+                    const response = await fetch('/generate-cert');
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Update the textarea with the new certificate
+                    certTextarea.value = data.cert_pem;
+                    
+                    // Uncheck the generate certificate checkbox since we already have one
+                    generateCertCheckbox.checked = false;
+                } catch (error) {
+                    console.error('Error fetching certificate:', error);
+                    alert('Failed to generate certificate. Please try again.');
+                } finally {
+                    // Remove loading state
+                    certTextarea.classList.remove('loading');
+                    refreshButton.classList.remove('loading');
+                }
+            });
+
+            const refreshSaltButton = document.getElementById('refresh-salt');
+            const saltInput = document.getElementById('salt');
+            const generateSaltCheckbox = document.getElementById('generate_salt');
+            
+            refreshSaltButton.addEventListener('click', async function() {
+                try {
+                    // Show loading state
+                    saltInput.classList.add('loading');
+                    refreshSaltButton.classList.add('loading');
+                    
+                    // Fetch a new salt
+                    const response = await fetch('/generate-salt');
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Update the input with the new salt
+                    saltInput.value = data.salt;
+                    
+                    // Uncheck the generate salt checkbox since we already have one
+                    generateSaltCheckbox.checked = false;
+                } catch (error) {
+                    console.error('Error fetching salt:', error);
+                    alert('Failed to generate salt. Please try again.');
+                } finally {
+                    // Remove loading state
+                    saltInput.classList.remove('loading');
+                    refreshSaltButton.classList.remove('loading');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

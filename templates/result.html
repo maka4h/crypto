@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Derivation Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f7f7f7;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .result-section {
+            margin-bottom: 20px;
+        }
+        .key-box {
+            background-color: #e9f5e9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            white-space: pre;
+            overflow-x: auto;
+            margin: 10px 0;
+            position: relative;
+        }
+        .hex-key-box {
+            background-color: #f0f8ff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 10px 0;
+            max-height: 100px;
+            overflow-y: auto;
+            position: relative;
+        }
+        .input-section {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .key-format-toggle {
+            margin: 15px 0;
+        }
+        .tab-buttons {
+            display: flex;
+            margin-bottom: -1px;
+        }
+        .tab-button {
+            padding: 8px 16px;
+            background-color: #e6e6e6;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        .tab-button.active {
+            background-color: #e9f5e9;
+            border-bottom: 1px solid #e9f5e9;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+        textarea, .code-block {
+            background-color: #f0f0f0;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            overflow: auto;
+            white-space: pre-wrap;
+            position: relative;
+        }
+        textarea {
+            height: 100px;
+        }
+        .code-block {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 15px;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .info {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .copy-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+        .copy-button:hover {
+            opacity: 1;
+        }
+        .copy-icon {
+            width: 16px;
+            height: 16px;
+            background-color: white;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>') center/contain no-repeat;
+            -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>') center/contain no-repeat;
+        }
+        .clipboard-message {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Key Derivation Results</h1>
+        
+        <div class="result-section">
+            <h2>Generated Keys</h2>
+            
+            <div>
+                <label>Private Key:</label>
+                <div class="tab-buttons" id="private-key-tabs">
+                    <button class="tab-button active" data-tab="private-pem">PEM Format</button>
+                    <button class="tab-button" data-tab="private-hex">Hex Format</button>
+                </div>
+                <div class="tab-content active" id="private-pem">
+                    <div class="key-box" id="private-key-pem">{{ private_key_pem }}
+                        <button class="copy-button" data-copy="private-key-pem">
+                            <span class="copy-icon"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="tab-content" id="private-hex">
+                    <div class="hex-key-box" id="private-key-hex">{{ private_key_hex }}
+                        <button class="copy-button" data-copy="private-key-hex">
+                            <span class="copy-icon"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <label>Public Key:</label>
+                <div class="tab-buttons" id="public-key-tabs">
+                    <button class="tab-button active" data-tab="public-pem">PEM Format</button>
+                    <button class="tab-button" data-tab="public-hex">Hex Format</button>
+                </div>
+                <div class="tab-content active" id="public-pem">
+                    <div class="key-box" id="public-key-pem">{{ public_key_pem }}
+                        <button class="copy-button" data-copy="public-key-pem">
+                            <span class="copy-icon"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="tab-content" id="public-hex">
+                    <div class="hex-key-box" id="public-key-hex">{{ public_key_hex }}
+                        <button class="copy-button" data-copy="public-key-hex">
+                            <span class="copy-icon"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-section">
+            <h2>Parameters Used</h2>
+            
+            <div>
+                <label>RSA Key Size:</label>
+                <div>{{ key_size }} bits</div>
+            </div>
+            
+            <div>
+                <label>Salt:</label>
+                <div class="tab-buttons" id="salt-tabs">
+                    <button class="tab-button active" data-tab="salt-base64">Base64 Format</button>
+                    <button class="tab-button" data-tab="salt-decoded">Decoded Format</button>
+                </div>
+                <div class="tab-content active" id="salt-base64">
+                    <div class="key-box" id="salt-base64-value">{{ salt }}
+                        <button class="copy-button" data-copy="salt-base64-value">
+                            <span class="copy-icon"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="tab-content" id="salt-decoded">
+                    <div class="key-box" id="salt-decoded-value">{{ salt_decoded }}
+                        <button class="copy-button" data-copy="salt-decoded-value">
+                            <span class="copy-icon"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <label>PBKDF2 Iterations:</label>
+                <div>{{ iterations }}</div>
+            </div>
+            
+            <div>
+                <label>Certificate PEM:</label>
+                <div class="code-block" id="certificate-pem">{{ cert_pem }}
+                    <button class="copy-button" data-copy="certificate-pem">
+                        <span class="copy-icon"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <a href="/" class="button">Generate Another Key Pair</a>
+    </div>
+
+    <div class="clipboard-message" id="clipboard-message">Copied to clipboard!</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function setupTabs(tabsContainerId) {
+                const tabsContainer = document.getElementById(tabsContainerId);
+                if (!tabsContainer) return;
+                
+                const buttons = tabsContainer.querySelectorAll('.tab-button');
+                
+                buttons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        // Remove active class from all buttons and content
+                        buttons.forEach(btn => btn.classList.remove('active'));
+                        
+                        // Find all related tab contents
+                        const tabPrefix = tabsContainerId.split('-')[0] + '-';
+                        document.querySelectorAll(`[id^=${tabPrefix}]`).forEach(content => {
+                            if (content.id.startsWith(tabPrefix) && content.classList.contains('tab-content')) {
+                                content.classList.remove('active');
+                            }
+                        });
+                        
+                        // Add active class to clicked button
+                        this.classList.add('active');
+                        
+                        // Show the corresponding content
+                        const tabId = this.getAttribute('data-tab');
+                        document.getElementById(tabId).classList.add('active');
+                    });
+                });
+            }
+            
+            // Setup tabs for both key types and salt
+            setupTabs('private-key-tabs');
+            setupTabs('public-key-tabs');
+            setupTabs('salt-tabs');
+            
+            // Setup copy buttons
+            document.querySelectorAll('.copy-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const elementId = this.getAttribute('data-copy');
+                    const element = document.getElementById(elementId);
+                    const text = element.textContent.trim();
+                    
+                    navigator.clipboard.writeText(text).then(() => {
+                        const message = document.getElementById('clipboard-message');
+                        message.style.display = 'block';
+                        
+                        setTimeout(() => {
+                            message.style.display = 'none';
+                        }, 2000);
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
