@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "derive_keys"
+version = "0.2.0"
+description = "A library for generating RSA key pairs from certificates and salt values"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+dependencies = [
+    "cryptography>=40.0.0",
+]
+
+[project.urls]
+Repository = "https://github.com/yourusername/derive_keys"
+Changelog = "https://github.com/yourusername/derive_keys/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["derive_keys"]
