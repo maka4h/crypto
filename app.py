@@ -66,7 +66,8 @@ async def derive_keys(
         key_size
     )
     
-    # Salt in base64 format for display
+    # Salt in raw and base64 formats for display
+    salt_raw = salt_bytes.hex()  # Using hex representation for raw bytes
     salt_b64 = base64.b64encode(salt_bytes).decode('utf-8')
     
     # Get a human-readable representation of the salt
@@ -88,6 +89,7 @@ async def derive_keys(
             "public_key_hex": public_key_hex,
             "cert_pem": cert_pem,
             "salt": salt_b64,
+            "salt_raw": salt_raw,
             "salt_decoded": salt_decoded,
             "iterations": iterations,
             "key_size": key_size
