@@ -162,6 +162,34 @@
             display: none;
             z-index: 1000;
         }
+        .algorithm-info {
+            display: inline-block;
+            margin-left: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .rsa-badge {
+            background-color: #e0f7fa;
+            color: #0277bd;
+        }
+        .ecc-badge {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .key-info {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background-color: #fafafa;
+        }
     </style>
 </head>
 <body>
@@ -169,7 +197,13 @@
         <h1>Key Derivation Results</h1>
         
         <div class="result-section">
-            <h2>Generated Keys</h2>
+            <h2>Generated Keys 
+                {% if algorithm.lower() == "rsa" %}
+                <span class="algorithm-info rsa-badge">RSA</span>
+                {% else %}
+                <span class="algorithm-info ecc-badge">ECC</span>
+                {% endif %}
+            </h2>
             
             <div>
                 <label>Private Key:</label>
@@ -219,9 +253,28 @@
         <div class="input-section">
             <h2>Parameters Used</h2>
             
-            <div>
-                <label>RSA Key Size:</label>
-                <div>{{ key_size }} bits</div>
+            <div class="details-grid">
+                <div class="key-info">
+                    <label>Algorithm:</label>
+                    <div>{{ algorithm.upper() }}</div>
+                </div>
+                
+                {% if algorithm.lower() == "rsa" %}
+                <div class="key-info">
+                    <label>RSA Key Size:</label>
+                    <div>{{ key_size }} bits</div>
+                </div>
+                {% else %}
+                <div class="key-info">
+                    <label>ECC Curve:</label>
+                    <div>{{ curve_name }}</div>
+                </div>
+                {% endif %}
+                
+                <div class="key-info">
+                    <label>PBKDF2 Iterations:</label>
+                    <div>{{ iterations }}</div>
+                </div>
             </div>
             
             <div>
@@ -244,11 +297,6 @@
                         </button>
                     </div>
                 </div>
-            </div>
-            
-            <div>
-                <label>PBKDF2 Iterations:</label>
-                <div>{{ iterations }}</div>
             </div>
             
             <div>

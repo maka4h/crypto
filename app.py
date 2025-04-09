@@ -11,8 +11,9 @@ from fastapi.templating import Jinja2Templates
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from derive_keys import derive_key_pair_from_pem
+from cryptography.hazmat.primitives.asymmetric import rsa, ec
+from derive_keys import derive_key_pair_from_pem, get_available_curves, RSA_ALGORITHM, ECC_ALGORITHM
+from pydantic import BaseModel, Field
 
 app = FastAPI(title="Key Derivation Service")
 
@@ -25,7 +26,8 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/", response_class=HTMLResponse)
 async def get_form(request: Request):
     """Render the HTML form for key derivation"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    ecc_curves = get_available_curves()
+    return templates.TemplateResponse("index.html", {"request": request, "ecc_curves": ecc_curves})
 
 @app.post("/derive-keys", response_class=HTMLResponse)
 async def derive_keys(
@@ -33,7 +35,9 @@ async def derive_keys(
     cert_pem: str = Form(...),
     salt: Optional[str] = Form(None),
     iterations: int = Form(100000),
+    algorithm: str = Form(RSA_ALGORITHM),
     key_size: int = Form(2048),
+    curve_name: str = Form("secp256r1"),
     generate_cert: bool = Form(False),
     generate_salt: bool = Form(False)
 ):
@@ -45,7 +49,7 @@ async def derive_keys(
     """
     # Generate a self-signed certificate if requested
     if generate_cert:
-        cert_pem = generate_self_signed_cert()
+        cert_pem = generate_self_signed_cert(algorithm, key_size, curve_name)
     
     # Generate a random salt if requested or if no salt provided
     if generate_salt or not salt:
@@ -63,7 +67,9 @@ async def derive_keys(
         cert_pem, 
         salt_bytes, 
         iterations, 
-        key_size
+        key_size,
+        algorithm,
+        curve_name
     )
     
     # Salt in raw and base64 formats for display
@@ -92,14 +98,20 @@ async def derive_keys(
             "salt_raw": salt_raw,
             "salt_decoded": salt_decoded,
             "iterations": iterations,
-            "key_size": key_size
+            "key_size": key_size,
+            "algorithm": algorithm,
+            "curve_name": curve_name if algorithm.lower() == ECC_ALGORITHM else "N/A"
         }
     )
 
 @app.get("/generate-cert")
-async def generate_cert_endpoint():
+async def generate_cert_endpoint(
+    algorithm: str = RSA_ALGORITHM,
+    key_size: int = 2048,
+    curve_name: str = "secp256r1"
+):
     """Generate a new self-signed certificate and return it as JSON."""
-    cert_pem = generate_self_signed_cert()
+    cert_pem = generate_self_signed_cert(algorithm, key_size, curve_name)
     return JSONResponse(content={"cert_pem": cert_pem})
 
 @app.get("/generate-salt")
@@ -109,13 +121,69 @@ async def generate_salt_endpoint():
     salt = base64.b64encode(salt_bytes).decode('utf-8')
     return JSONResponse(content={"salt": salt})
 
-def generate_self_signed_cert():
+class DeriveKeysRequest(BaseModel):
+    cert_pem: str
+    salt: str  # Base64 encoded salt
+    iterations: int = 100000
+    algorithm: str = RSA_ALGORITHM
+    key_size: int = 2048
+    curve_name: str = "secp256r1"
+
+@app.post("/test-derive-keys", response_class=JSONResponse)
+async def test_derive_keys_endpoint(payload: DeriveKeysRequest):
+    """Test endpoint for deriving keys, returns JSON."""
+    try:
+        # Decode base64 salt
+        salt_bytes = base64.b64decode(payload.salt)
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": f"Invalid base64 salt: {e}"})
+
+    try:
+        private_key_pem, public_key_pem, private_key_hex, public_key_hex = derive_key_pair_from_pem(
+            payload.cert_pem,
+            salt_bytes,
+            payload.iterations,
+            payload.key_size,
+            payload.algorithm,
+            payload.curve_name
+        )
+        return JSONResponse(content={
+            "private_key_pem": private_key_pem,
+            "public_key_pem": public_key_pem,
+            "private_key_hex": private_key_hex,
+            "public_key_hex": public_key_hex
+        })
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"Internal server error: {e}"})
+
+def generate_self_signed_cert(algorithm: str = RSA_ALGORITHM, key_size: int = 2048, curve_name: str = "secp256r1"):
     """Generate a self-signed certificate and return its PEM representation."""
-    # Generate private key
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048
-    )
+    # Generate private key based on selected algorithm
+    if algorithm.lower() == RSA_ALGORITHM:
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=key_size
+        )
+    elif algorithm.lower() == ECC_ALGORITHM:
+        # Map curve name to cryptography curve object
+        curve_map = {
+            'secp256r1': ec.SECP256R1(),
+            'secp384r1': ec.SECP384R1(),
+            'secp521r1': ec.SECP521R1(),
+            'secp224r1': ec.SECP224R1(),
+            'secp192r1': ec.SECP192R1(),
+        }
+        
+        curve = curve_map.get(curve_name, ec.SECP256R1())  # Default to SECP256R1 if not found
+        
+        # Generate an ECC private key with specified curve
+        private_key = ec.generate_private_key(
+            curve=curve
+        )
+    else:
+        raise ValueError(f"Unsupported algorithm: {algorithm}. Must be either 'rsa' or 'ecc'.")
     
     # Create a self-signed certificate
     subject = issuer = x509.Name([

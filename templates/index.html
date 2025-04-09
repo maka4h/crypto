@@ -27,7 +27,7 @@
             margin: 10px 0 5px;
             font-weight: bold;
         }
-        textarea, input[type="text"], input[type="number"] {
+        textarea, input[type="text"], input[type="number"], select {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -109,12 +109,31 @@
             opacity: 0.5;
             pointer-events: none;
         }
+        .algorithm-section {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+        }
+        .radio-group {
+            margin-bottom: 15px;
+        }
+        .radio-label {
+            margin-right: 20px;
+            font-weight: normal;
+        }
+        .dependent-field {
+            margin-left: 20px;
+            margin-top: 10px;
+            padding-left: 10px;
+            border-left: 2px solid #ddd;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Key Derivation Tool</h1>
-        <p>Use this tool to derive a key pair from a certificate PEM and a salt value using RSA algorithm.</p>
+        <p>Use this tool to derive a key pair from a certificate PEM and a salt value using RSA or ECC algorithms.</p>
         
         <form action="/derive-keys" method="post">
             <div>
@@ -157,16 +176,37 @@
                 <div class="info">Number of iterations for PBKDF2 (default: 100,000)</div>
             </div>
             
-            <div>
-                <label for="key_size">Key Size (bits):</label>
-                <select name="key_size" id="key_size">
-                    <option value="512">512 bits</option>
-                    <option value="1024">1024 bits</option>
-                    <option value="2048" selected>2048 bits (recommended)</option>
-                    <option value="3072">3072 bits</option>
-                    <option value="4096">4096 bits</option>
-                </select>
-                <div class="info">RSA key size in bits. Larger keys are more secure but slower to generate.</div>
+            <div class="algorithm-section">
+                <label>Key Algorithm:</label>
+                <div class="radio-group">
+                    <input type="radio" id="rsa_algorithm" name="algorithm" value="rsa" checked onchange="toggleAlgorithmFields()">
+                    <label for="rsa_algorithm" class="radio-label">RSA</label>
+                    
+                    <input type="radio" id="ecc_algorithm" name="algorithm" value="ecc" onchange="toggleAlgorithmFields()">
+                    <label for="ecc_algorithm" class="radio-label">ECC (Elliptic Curve Cryptography)</label>
+                </div>
+                
+                <div id="rsa_fields" class="dependent-field">
+                    <label for="key_size">RSA Key Size (bits):</label>
+                    <select name="key_size" id="key_size">
+                        <option value="512">512 bits</option>
+                        <option value="1024">1024 bits</option>
+                        <option value="2048" selected>2048 bits (recommended)</option>
+                        <option value="3072">3072 bits</option>
+                        <option value="4096">4096 bits</option>
+                    </select>
+                    <div class="info">RSA key size in bits. Larger keys are more secure but slower to generate.</div>
+                </div>
+                
+                <div id="ecc_fields" class="dependent-field" style="display: none;">
+                    <label for="curve_name">ECC Curve:</label>
+                    <select name="curve_name" id="curve_name">
+                        {% for curve in ecc_curves %}
+                        <option value="{{ curve }}" {% if curve == "secp256r1" %}selected{% endif %}>{{ curve }} {% if curve == "secp256r1" %}(NIST P-256, recommended){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="info">ECC curve to use. Different curves provide different security levels and performance characteristics.</div>
+                </div>
             </div>
             
             <button type="submit">Derive Keys</button>
@@ -174,7 +214,23 @@
     </div>
 
     <script>
+        function toggleAlgorithmFields() {
+            const rsaAlgorithm = document.getElementById('rsa_algorithm');
+            const rsaFields = document.getElementById('rsa_fields');
+            const eccFields = document.getElementById('ecc_fields');
+            
+            if (rsaAlgorithm.checked) {
+                rsaFields.style.display = 'block';
+                eccFields.style.display = 'none';
+            } else {
+                rsaFields.style.display = 'none';
+                eccFields.style.display = 'block';
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
+            toggleAlgorithmFields(); // Set initial state
+            
             const refreshButton = document.getElementById('refresh-cert');
             const certTextarea = document.getElementById('cert_pem');
             const generateCertCheckbox = document.getElementById('generate_cert');
@@ -185,8 +241,22 @@
                     certTextarea.classList.add('loading');
                     refreshButton.classList.add('loading');
                     
+                    // Get the selected algorithm
+                    const algorithm = document.querySelector('input[name="algorithm"]:checked').value;
+                    const urlParams = new URLSearchParams();
+                    urlParams.append('algorithm', algorithm);
+                    
+                    // Add key size or curve name based on selected algorithm
+                    if (algorithm === 'rsa') {
+                        const keySize = document.getElementById('key_size').value;
+                        urlParams.append('key_size', keySize);
+                    } else {
+                        const curveName = document.getElementById('curve_name').value;
+                        urlParams.append('curve_name', curveName);
+                    }
+                    
                     // Fetch a new certificate
-                    const response = await fetch('/generate-cert');
+                    const response = await fetch(`/generate-cert?${urlParams.toString()}`);
                     
                     if (!response.ok) {
                         throw new Error(`HTTP error! Status: ${response.status}`);
